@@ -5,11 +5,13 @@ Web de estadísticas para el Campeonato Kostkas 2025/2026. Muestra rankings, his
 ## Características
 
 - 📊 **Dashboard Completo**: Top Puntos, Partidos Jugados y % Victorias.
+- ⚖️ **Generador de Equipos**: Algoritmo "Snake Draft" para crear equipos equilibrados automáticamente.
 - 🌓 **Modo Oscuro**: Soporte nativo para tema claro y oscuro.
 - 📱 **Responsive**: Diseño adaptado a móviles y escritorio.
 - 🏆 **MVP Mensual**: Calculado automáticamente.
 - 🔍 **Filtros**: Filtrado de estadísticas por mes.
 - 🤝 **Afinidad**: Análisis de mejores y peores compañeros de equipo.
+- ☁️ **Datos en Vivo**: Conexión directa a Google Sheets (con caché y fallback local).
 
 ## Tecnologías
 

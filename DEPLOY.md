@@ -15,6 +15,7 @@ La estructura final en el servidor debe quedar así:
 /public_html/kostkas/
 ├── index.html
 ├── llms.txt
+├── get_data.php
 ├── css/
 │   └── style.css
 ├── js/
@@ -26,7 +27,12 @@ La estructura final en el servidor debe quedar así:
     └── Campeonato Kostkas 2025_2026.xlsx
 ```
 
-## 3. Verificar Permisos
+## 3. Requisitos del Servidor (IMPORTANTE)
+Como ahora los datos se obtienen de Google Sheets de forma oculta, **tu servidor debe soportar PHP**.
+- Asegúrate de subir el archivo `get_data.php`.
+- El archivo `data/Campeonato Kostkas 2025_2026.xlsx` sigue siendo necesario como "copia de seguridad" por si falla la conexión con Google.
+
+## 4. Verificar Permisos
 Asegúrate de que los archivos tengan permisos de lectura para el público (usualmente `644` para archivos y `755` para carpetas).
 
 ## 4. Actualizar Datos
