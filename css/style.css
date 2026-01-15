@@ -1,0 +1,13 @@
+/* Custom styles if needed */
+.streak-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.streak-w {
+    background-color: #22c55e;
+}
+.streak-l {
+    background-color: #ef4444;
+}

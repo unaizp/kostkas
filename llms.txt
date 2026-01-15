@@ -1,0 +1,31 @@
+# Campeonato Kostkas 2025/2026
+
+## Overview
+This is a basketball championship statistics dashboard built with HTML, Tailwind CSS, and vanilla JavaScript. It reads data from a local Excel file (`data/Campeonato Kostkas 2025_2026.xlsx`) to generate rankings, match histories, and player statistics.
+
+## Tech Stack
+- **Frontend**: HTML5, Vanilla JavaScript
+- **Styling**: Tailwind CSS (CDN), Custom CSS (`css/style.css`)
+- **Data Parsing**: SheetJS (xlsx.full.min.js - CDN)
+- **Icons**: SVG Icons (Heroicons style), Custom Emojis
+
+## Key Features
+- **Dashboard**: Top lists for Points, Games Played, and Win %.
+- **Dark Mode**: Fully supported with local storage persistence.
+- **Match History**: Modal view of all past matches with winner/loser highlights.
+- **Player Details**: Modal view with individual stats and "Affinity" (Best/Worst Teammates).
+- **Team Stats**: Best and Worst team compositions based on win rate.
+- **Filtering**: Monthly filter that updates all dashboard widgets.
+- **SEO**: OpenGraph tags, Twitter cards, and JSON-LD structured data.
+
+## File Structure
+- `index.html`: Main entry point.
+- `js/app.js`: Core logic (Data fetching, parsing, rendering).
+- `css/style.css`: Custom styles (e.g., streak dots).
+- `data/`: Contains the source Excel file.
+- `img/`: Contains assets (OpenGraph image, Favicon).
+
+## Data Logic
+- **Win/Loss**: In the Excel file, a result of `2` indicates a Win, `1` indicates a Loss (Played).
+- **Streak**: Calculated based on the chronological order of matches.
+- **Affinity**: Calculated by analyzing shared match results between players.
