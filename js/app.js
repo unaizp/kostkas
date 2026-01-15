@@ -27,18 +27,18 @@ let currentMonth = 'all';
 async function loadData() {
     try {
         // First try to fetch from the PHP proxy (Google Sheets)
-        let response = await fetch(`get_data.php?t=${new Date().getTime()}`);
-        let workbook;
+        let response = null;
+        let workbook = null;
 
-        // Try to parse the proxy response
-        if (response.ok) {
-            try {
+        try {
+            response = await fetch(`get_data.php?t=${new Date().getTime()}`);
+            if (response.ok) {
                 const arrayBuffer = await response.arrayBuffer();
                 workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
-            } catch (e) {
-                console.warn('Proxy returned success but invalid data (likely HTML login page). Falling back.', e);
-                response = null; // Force fallback
             }
+        } catch (e) {
+            console.warn('Proxy fetch failed (likely no PHP or network error). Support will fall back to local file.', e);
+            response = null;
         }
 
         // If the proxy failed or returned invalid data, fall back to local file
@@ -456,6 +456,86 @@ window.openPlayerModal = function (playerName) {
 
     modal.classList.remove('hidden');
     renderPlayerDetails(playerStats);
+
+    // Give DOM time to render canvas
+    setTimeout(() => {
+        renderPlayerChart(playerStats);
+    }, 100);
+}
+
+function renderPlayerChart(player) {
+    const ctx = document.getElementById('playerTrendChart');
+    if (!ctx) return;
+
+    // Destroy existing chart instance if any
+    const existingChart = Chart.getChart(ctx);
+    if (existingChart) existingChart.destroy();
+
+    // Prepare data: Points over last N matches the player played
+    // Get all matches for this player, sorted chronologically
+    const playerMatches = allMatches
+        .filter(m => m.results[player.name])
+        .sort((a, b) => a.date - b.date); // Oldest first
+
+    // Map to labels (Date) and data (Points derived from result)
+    const labels = playerMatches.map(m => m.date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }));
+    const dataPoints = playerMatches.map(m => {
+        const res = m.results[player.name];
+        return res == 2 ? 2 : 1; // 2 points for Win, 1 for Loss
+    });
+
+    // Calculate moving average or cumulative?
+    // User asked "Evolución de puntos" which usually means points per game. OR Cumulative?
+    // "Evolución" implies trend.
+    // Let's show specific match points (1 or 2) and maybe a cumulative avg line? 
+    // Actually, points are discrete (1 or 2). A line chart jumping 1-2-1-2 is okay. 
+    // Maybe Cumulative Total Points is better? "Running Total".
+    // Let's stick to "Points per Match" for now, simple line.
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Puntos por Partido',
+                data: dataPoints,
+                borderColor: '#4f46e5', // Indigo 600
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: '#4f46e5'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 3, // Points are 1 or 2, so 3 gives headroom
+                    ticks: {
+                        stepSize: 1
+                    },
+                    grid: {
+                        color: document.documentElement.classList.contains('dark') ? '#334155' : '#e2e8f0'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
 }
 
 window.closePlayerModal = function () {
@@ -492,6 +572,14 @@ function renderPlayerDetails(player) {
             <div class="bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg text-center">
                 <span class="block text-xs text-slate-500 dark:text-slate-400 uppercase">% Victoria</span>
                 <span class="block text-xl font-bold ${player.percentage >= 50 ? 'text-green-600' : 'text-slate-500'}">${player.percentage.toFixed(1)}%</span>
+            </div>
+        </div>
+
+        <!-- Points Trend Chart -->
+        <div class="mb-4">
+            <h4 class="text-sm font-bold text-slate-900 dark:text-white mb-2">Evolución de Puntos</h4>
+            <div class="h-48 w-full bg-white dark:bg-slate-800 rounded-lg p-2 border border-slate-100 dark:border-slate-700">
+                <canvas id="playerTrendChart"></canvas>
             </div>
         </div>
 
@@ -597,6 +685,129 @@ function renderAffinityList(list, colorClass) {
             </div>
         </div>
     `}).join('');
+}
+
+// --- Comparator Logic ---
+
+window.openComparatorModal = function () {
+    const modal = document.getElementById('comparatorModal');
+    modal.classList.remove('hidden');
+
+    // Populate Selects
+    const selA = document.getElementById('compareSelectA');
+    const selB = document.getElementById('compareSelectB');
+
+    // Sort players alphabetically
+    const sortedPlayers = [...players].sort();
+
+    // Helper helper
+    const fillSelect = (sel, selected) => {
+        sel.innerHTML = '<option value="">Seleccionar...</option>';
+        sortedPlayers.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p;
+            if (p === selected) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    }
+
+    fillSelect(selA, sortedPlayers[0]);
+    fillSelect(selB, sortedPlayers[1]);
+
+    updateComparator();
+}
+
+window.closeComparatorModal = function () {
+    document.getElementById('comparatorModal').classList.add('hidden');
+}
+
+window.updateComparator = function () {
+    const nameA = document.getElementById('compareSelectA').value;
+    const nameB = document.getElementById('compareSelectB').value;
+    const content = document.getElementById('comparatorContent');
+
+    if (!nameA || !nameB || nameA === nameB) {
+        content.classList.add('opacity-50', 'pointer-events-none');
+        // Optionally show error msg
+        return;
+    }
+
+    content.classList.remove('opacity-50', 'pointer-events-none');
+
+    // Calculate Stats
+    const { stats } = processStatsForDisplay(); // Get current global stats
+    const statsA = stats.find(p => p.name === nameA) || { played: 0, won: 0, points: 0, percentage: 0 };
+    const statsB = stats.find(p => p.name === nameB) || { played: 0, won: 0, points: 0, percentage: 0 };
+
+    // Calculate Head-to-Head
+    const h2h = calculateHeadToHead(nameA, nameB);
+
+    // Render Rows inside grid
+    const rowsContainer = document.getElementById('compareStatsRows');
+    rowsContainer.innerHTML = '';
+
+    const createRow = (label, valA, valB, formatFn = v => v) => {
+        // Highlighting logic: simplified (bold winner)
+        const isAWinner = valA > valB;
+        const isBWinner = valB > valA;
+
+        const styleA = isAWinner ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400';
+        const styleB = isBWinner ? 'font-bold text-orange-600 dark:text-orange-400' : 'text-slate-600 dark:text-slate-400';
+
+        rowsContainer.innerHTML += `
+            <div class="${styleA} text-lg">${formatFn(valA)}</div>
+            <div class="text-xs uppercase text-slate-500 font-medium">${label}</div>
+            <div class="${styleB} text-lg">${formatFn(valB)}</div>
+        `;
+    };
+
+    createRow('Partidos', statsA.played, statsB.played);
+    createRow('Puntos Totales', statsA.points, statsB.points);
+    createRow('% Victorias', statsA.percentage, statsB.percentage, v => v.toFixed(1) + '%');
+    createRow('Media Puntos', (statsA.points / statsA.played) || 0, (statsB.points / statsB.played) || 0, v => v.toFixed(2));
+
+    // Update H2H Cards
+    document.getElementById('winsA').innerText = h2h.winsA;
+    document.getElementById('winsB').innerText = h2h.winsB;
+    document.getElementById('h2hGames').innerText = h2h.vsGames;
+
+    document.getElementById('winsTogether').innerText = h2h.togetherGames > 0 ? ((h2h.winsTogether / h2h.togetherGames) * 100).toFixed(0) + '%' : '0%';
+    document.getElementById('gamesTogether').innerText = h2h.togetherGames;
+}
+
+function calculateHeadToHead(nameA, nameB) {
+    let vsGames = 0;
+    let winsA = 0;
+    let winsB = 0;
+
+    let togetherGames = 0;
+    let winsTogether = 0;
+
+    allMatches.forEach(match => {
+        const resA = match.results[nameA];
+        const resB = match.results[nameB];
+
+        if (!resA || !resB) return; // Only matches where BOTH played
+
+        // Are they on same team? (Same result code means same team usually??)
+        // No, result logic is: 1 = Loss, 2 = Win.
+        // If they played against each other, one must win (2) and one lose (1).
+        // If they played together, both are 1 OR both are 2.
+
+        if (resA === resB) {
+            // Played Together
+            togetherGames++;
+            if (resA == 2) winsTogether++;
+        } else {
+            // Played Against
+            vsGames++;
+            if (resA == 2) winsA++;
+            if (resB == 2) winsB++; // Should imply resA == 1
+        }
+    });
+
+    return { vsGames, winsA, winsB, togetherGames, winsTogether };
 }
 
 function renderTeamStats(matches) {
