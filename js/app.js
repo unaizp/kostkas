@@ -59,7 +59,16 @@ function processData(rawData) {
 
     const headers = rawData[0];
     const playerStartIndex = 3;
-    players = headers.slice(playerStartIndex).filter(h => h && typeof h === 'string'); // Extract player names
+
+    // Map players to their original column index to handle empty columns/gaps
+    const playerMap = [];
+    for (let i = playerStartIndex; i < headers.length; i++) {
+        if (headers[i] && typeof headers[i] === 'string' && headers[i].trim() !== '') {
+            playerMap.push({ name: headers[i], index: i });
+        }
+    }
+
+    players = playerMap.map(p => p.name); // Store just names for global usage
 
     allMatches = rawData.slice(1).map(row => {
         // Skip empty rows
@@ -70,9 +79,7 @@ function processData(rawData) {
 
         // Handle Excel Date serial numbers or date strings
         if (typeof dateVal === 'number') {
-            // Excel date serial to JS Date (approx)
-            // Or rely on cellDates: true from XLSX.read which should give us Date objects directly if formatted as date
-            dateObj = new Date((dateVal - (25567 + 2)) * 86400 * 1000); // Simple fallback if not parsed
+            dateObj = new Date((dateVal - (25567 + 2)) * 86400 * 1000);
         } else if (dateVal instanceof Date) {
             dateObj = dateVal;
         } else {
@@ -86,11 +93,11 @@ function processData(rawData) {
             results: {}
         };
 
-        // Map player results
-        players.forEach((player, index) => {
-            const cellValue = row[playerStartIndex + index];
+        // Map results using specific column indices
+        playerMap.forEach(p => {
+            const cellValue = row[p.index];
             if (cellValue == 1 || cellValue == 2) {
-                match.results[player] = cellValue; // 1 = Loss, 2 = Win, 1 (Played), 2 (Win)
+                match.results[p.name] = cellValue;
             }
         });
 
@@ -575,7 +582,7 @@ function renderTeamStats(matches) {
         `).join('');
 
         el.innerHTML = `
-            <div class="flex flex-wrap justify-center gap-4 mb-4">
+            <div class="flex flex-wrap justify-center gap-2 mb-4">
                 ${playerList}
             </div>
             <div class="text-center">
